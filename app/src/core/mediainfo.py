@@ -10,7 +10,7 @@ __version__ = "1.0"
 import os, sys, json, re
 import subprocess as sp
 import cv2
-from typing import Dict, Optional, Any
+from typing import Dict, Optional
 
 if __package__ is None:
     sys.path.append('.')

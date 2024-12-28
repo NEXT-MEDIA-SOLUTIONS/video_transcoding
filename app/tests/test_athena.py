@@ -1,3 +1,10 @@
+import os, sys
+
+sys.path.append('.')
+workdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+print(workdir)
+sys.path.append(workdir)
+
 import unittest
 from unittest.mock import patch, MagicMock
 from app.src.db.athena import AthenaDB

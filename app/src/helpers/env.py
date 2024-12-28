@@ -61,13 +61,13 @@ class Env:
         Returns:
         any: Returned value of your environment variable.
         """
-        value = os.environ.get(name,default)
+        value = os.environ.get(name, default)
         if value is None:
             print("<Warning> : Name : \'%s\' of your environment variable not found in \'.env\' file !!!" % name)
         return value
 
     @staticmethod
-    def set(name,value):
+    def set(name, value):
         """This function help to set the value for a specific environment variable.
         Parameters:
         name (str) : Name of your environment variable.
@@ -77,5 +77,3 @@ class Env:
         # Write changes to .env file.
         # dotenv.set_key(dotenv_file, name, os.environ[name])
 
-if __name__ == "__main__":
-    pass

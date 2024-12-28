@@ -56,13 +56,6 @@ class CustomLogger(Logger):
         *args,
         **kwargs
     ):
-        # fmt = '[%(asctime)s %(name)s] (%(filename)s %(lineno)d): %(levelname)s %(message)s'
-        # color_fmt = colored('%(asctime)s', 'green') + " | "  + \
-        #             colored('%(name)s', 'red') + " | "  + \
-        #             colored('%(filename)s %(lineno)d', 'yellow') + ' | %(levelname)s | %(message)s'
-
-        # log_format = colored('%(asctime)s | %(name)s', 'green') + " | "  + \
-        #             colored('%(filename)s %(lineno)d', 'yellow') + ' | %(levelname)s | %(message)s'
 
         self.formatter = logging.Formatter(fmt=log_format, datefmt='%Y-%m-%d %H:%M:%S')
         if log_file is None:

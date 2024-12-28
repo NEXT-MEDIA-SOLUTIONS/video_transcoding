@@ -7,15 +7,10 @@ __license__ = "DWH"
 __service__ = "Video Checker & Encoder"
 __version__ = "1.0"
 
-import os, sys, re
-import stat
-import json
-import requests
+import os, sys
+import json 
 from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
-import boto3
-from botocore.exceptions import ClientError
-import xml.etree.ElementTree as ET
 from glob import glob
 
 if __package__ is None:
@@ -28,13 +23,12 @@ from src.helpers.utils import get_error_traceback, exec_cmd
 from src.core.mediainfo import VideoInfo
 from src.db.athena import AthenaDB
 from src.tools.sftp import sftp_transfer
+from src.tools.s3 import upload_to_s3
 
 ENCODED_VIDEO_DIR = Env.get("ENCODED_VIDEO_DIR","/tmp/encoded_video/")
 SIMPLES_VIDEO_DIR = Env.get("SIMPLES_VIDEO_DIR","/tmp/simples_video/")
 os.makedirs(ENCODED_VIDEO_DIR, exist_ok=True)
 os.makedirs(SIMPLES_VIDEO_DIR, exist_ok=True)
-
-TIMEOUT = int(Env.get('TIMEOUT', 5000))
 
 BTVS_VIDEO_KEY=Env.get("BTVS_VIDEO_KEY")
 BTVS_XML_KEY=Env.get("BTVS_XML_KEY")
@@ -47,33 +41,9 @@ offset = timezone(timedelta(hours=1))
 # Get the current datetime with timezone
 now = datetime.now(offset)
 
-s3_client = boto3.client('s3')
-
-
 FFMPEG_DIR_PATH=Env.get("FFMPEG_DIR_PATH","/tmp/ffmpeg/")
 FFMPEG_BINARY=os.path.join(FFMPEG_DIR_PATH, "ffmpeg")
 os.environ["PATH"] += os.pathsep + FFMPEG_DIR_PATH
-
-# def download_ffmpeg():
-#     if not os.path.isfile(FFMPEG_BINARY):
-#         os.makedirs(FFMPEG_DIR_PATH, exist_ok=True)
-#         with open(FFMPEG_BINARY, 'wb') as file_obj:
-#             s3_client.download_fileobj("amac-adressable-tv", "assets/ffmpeg", file_obj)
-        
-#         # Change permissions to make it executable
-#         os.chmod(FFMPEG_BINARY, stat.S_IEXEC)
-
-def upload_to_s3(key_dir=None, path=None, file_key=None, bucket_name=None, is_public=True):
-    if file_key is None:
-        # Upload the converted file to S3
-        file_key= os.path.join(key_dir, path.replace("\\", "/").split("/")[-1]).replace("\\", "/")
-    if is_public:
-        s3_client.upload_file(path, bucket_name, file_key, ExtraArgs={'ACL': 'public-read'})
-    else:
-        s3_client.upload_file(path, bucket_name, file_key)
-    # Construct the public URL
-    public_url = f'https://{bucket_name}.s3.amazonaws.com/{file_key}'
-    return public_url
 
 class Encoder:
     def __init__(self, info, video_path) -> None:
@@ -90,6 +60,10 @@ class Encoder:
         self.video_btvs_url = None
         self.btvs_xml_url = None
         self.btvs_video_info=None
+        self.format_ok = None
+        self.video_ok = None
+        self.audio_ok = None
+        self.loudness_ok = None
         self.status = "success"
         self.error_msg=""
         if os.path.isfile(self.output_file_path):
@@ -196,7 +170,7 @@ class Encoder:
         self.video_ok = self.check_video(video_info.video_stream, video_info.video_info)
         self.audio_ok = self.check_audio(video_info.audio_streams, video_info.audio_info)
         self.loudness_ok = self.check_loudness(video_info.loudness)
-        
+
         LOG.log(name=__service__).info(f"format_ok: {self.format_ok}, video_ok: {self.video_ok}, audio_ok: {self.audio_ok}, loudness_ok: {self.loudness_ok}, frame_accuracy_ok: {self.frame_accuracy_ok}")
         return self.format_ok and self.video_ok and self.audio_ok and self.loudness_ok and self.frame_accuracy_ok 
 
@@ -229,10 +203,10 @@ class Encoder:
             flag += self.check_and_log("video bit_rate", 50000000, video_info['bit_rate'])
         flag += self.check_and_log("video start_time", 0.0, float(video_stream["start_time"]))
         flag += self.check_and_log("video duration", 2*60, float(video_stream["duration"]), "<=")
-        
+
         flag += self.check_and_log("video disposition lyrics", 0, int(video_stream["disposition"]["lyrics"]))#>> FRA : Renseigne la présence de sous-titrage brûlé à l’image dans la vidéo source.
         return flag==0
-        
+
     def check_audio(self, audio_streams, audio_info) -> bool:
         flag = 0
         for i, audio_stream in enumerate(audio_streams):
@@ -250,12 +224,12 @@ class Encoder:
 
     def check_loudness(self, loudness) -> bool:
         flag=0
-        flag += self.check_and_log(f"audio integrated_loudness", -23, loudness["integrated_loudness"], "<=")
-        flag += self.check_and_log(f"audio max_short-term_loudness", -20, loudness["max_short-term_loudness"], "<=")
-        flag += self.check_and_log(f"audio true_peak", -3, loudness["true_peak"], "<=")
-        self.check_and_log(f"audio loudness_range", 5.0, loudness["loudness_range"], ">=")
+        flag += self.check_and_log("audio integrated_loudness", -23, loudness["integrated_loudness"], "<=")
+        flag += self.check_and_log("audio max_short-term_loudness", -20, loudness["max_short-term_loudness"], "<=")
+        flag += self.check_and_log("audio true_peak", -3, loudness["true_peak"], "<=")
+        self.check_and_log("audio loudness_range", 5.0, loudness["loudness_range"], ">=")
         return flag==0
-    
+
     def check_and_log(self, key, expected, received, operator="==") -> int:
         operators = {
             ">": lambda x, y: x > y,
@@ -278,8 +252,7 @@ class Encoder:
             self.status = "check_ko"
             return 1
         return 0
-    
-    
+
     def convert(self) -> bool:
         # Convert video to the specified format
         """
@@ -294,7 +267,7 @@ class Encoder:
         -pix_fmt : Set pixel format
         
         """
-            
+
         loudness_conf = ""
         if not self.loudness_ok:
             cmd=f'{FFMPEG_DIR_PATH}ffmpeg -i "{self.input_file_path}" -af loudnorm=I=-24:LRA=7:tp=-3:print_format=json -f null - '
@@ -306,16 +279,16 @@ class Encoder:
                 # Load the JSON data
                 json_data = json.loads(json_output)
                 print(json_data)
-                
+
                 loudness_conf = f""" -af "loudnorm=I=-24:LRA=7:tp=-3:measured_i={json_data['input_i']}:measured_lra={json_data['input_lra']}:measured_tp={json_data['input_tp']}:measured_thresh={json_data['input_thresh']}:offset={json_data['target_offset']}" """
-        
+
         #To cut a video using `ffmpeg` and remove any extra milliseconds in the end, you can use the `-ss` and `-t` options to specify the start time and duration of the output video.
         duration_cuter_conf = ""
         if self.expected_duration != 0:
             LOG.log(name=__service__).warning(f"There is extra milliseconds in the end; duration:{self.expected_duration}")
             minutes, seconds = divmod(int(self.expected_duration), 60)
             duration_cuter_conf = f"-ss 00:00:00.000 -t 00:{minutes:02d}:{seconds:02d}.000" 
-            
+
         cmd =f"""{FFMPEG_DIR_PATH}ffmpeg 
         -i "{self.input_file_path}" 
         -f mxf -map 0:v -map 0:a
@@ -333,7 +306,7 @@ class Encoder:
             print(f"Video converted and saved as {self.output_file_path}")
             return True
         return False
-      
+
     def create_xml(self) -> None:
         id_ = AthenaDB.get_next_id(self.pub_id)
         # content_id=f"AMAC00000000001"
@@ -342,7 +315,7 @@ class Encoder:
         content_name=content_id
         res = AthenaDB.insert_btvs_ids(id_, content_id, self.pub_id)
         print(res)
-            
+
         text="pubid_"+self.pub_id
         # Format the datetime object to the specified format
         start_time=now.strftime("%Y-%m-%dT%H:%M:%S%z") # "2023-02-28T00:00:00+01:00"
@@ -422,3 +395,4 @@ class Encoder:
   </ContentLocationTable>
 </PCCAD_GRID>
 """)
+            
