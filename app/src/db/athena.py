@@ -12,15 +12,15 @@ from sqlalchemy import exc as sa_exc
 # Filter out all SQLAlchemy warnings
 warnings.filterwarnings('ignore', category=sa_exc.SADeprecationWarning)
 
-import boto3, os, sys, time
+import os, sys, time
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 import pandas as pd
+import boto3
 
 if __package__ is None:
     sys.path.append('.')
     sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    
+
 from src.helpers.env import Env
 from src.helpers.log import LOG
 from src.helpers.utils import get_error_traceback
@@ -35,6 +35,12 @@ log_flag = Env.get('APP_LOG')=='true'
 global_nb_try=int(Env.get("TOTALE_CONTROLE",6))
 sleep_time=int(Env.get("SLEEP_TIME",5))
 
+Env.set("AWS_ACCESS_KEY_ID", "DB_ATHENA_AWS_ACCESS_KEY_ID")
+Env.set("AWS_SECRET_ACCESS_KEY", "DB_ATHENA_AWS_SECRET_ACCESS_KEY")
+Env.set("AWS_DEFAULT_REGION", "DB_ATHENA_REGION_NAME")
+
+boto3.setup_default_session(region_name=DB_ATHENA_REGION_NAME)
+
 class AthenaDB:
     _client = None
     _engine = None
@@ -44,11 +50,25 @@ class AthenaDB:
     def get_client():
         """ Méthode statique pour récupérer l'instance unique de la classe """
         if AthenaDB._client is None:
-            AthenaDB._client = boto3.client('athena', 
-                                       aws_access_key_id=DB_ATHENA_AWS_ACCESS_KEY_ID, 
-                                       aws_secret_access_key=DB_ATHENA_AWS_SECRET_ACCESS_KEY, 
-                                       region_name=DB_ATHENA_REGION_NAME)
+            AthenaDB._client = boto3.client(
+                'athena', 
+                aws_access_key_id=DB_ATHENA_AWS_ACCESS_KEY_ID, 
+                aws_secret_access_key=DB_ATHENA_AWS_SECRET_ACCESS_KEY, 
+                region_name=DB_ATHENA_REGION_NAME)
         return AthenaDB._client
+    
+    @staticmethod
+    def table_exists(database_name, table_name):
+        client = AthenaDB.get_client()
+        try:
+            response = client.get_table_metadata(
+                CatalogName='AwsDataCatalog',
+                DatabaseName=database_name,
+                TableName=table_name
+            )
+            return True
+        except client.exceptions.MetadataException:
+            return False
 
     @staticmethod
     def run_query(query):
@@ -70,16 +90,11 @@ class AthenaDB:
                 time.sleep(0.5)
             else:
                 print('Query finished!')
-            
 
         # Once the query is finished, retrieve the results
         if query_status == 'SUCCEEDED':
             results_response = AthenaDB.get_client().get_query_results(QueryExecutionId=query_execution_id)
-            for row in results_response['ResultSet']['Rows']:
-                # Process and print the rows as needed
-                print(row)
             return results_response['ResultSet']['Rows']
-
         return None
 
     @staticmethod
@@ -92,8 +107,13 @@ class AthenaDB:
     @staticmethod
     def get_session():
         if AthenaDB._session is None:
-            Session = sessionmaker(bind=AthenaDB.get_engine())
-            AthenaDB._session = Session()
+        #     Session = sessionmaker(bind=AthenaDB.get_engine())
+        #     AthenaDB._session = Session()
+        # return AthenaDB._session
+            AthenaDB._session = boto3.Session(
+                aws_access_key_id=DB_ATHENA_AWS_ACCESS_KEY_ID, 
+                aws_secret_access_key=DB_ATHENA_AWS_SECRET_ACCESS_KEY,
+                region_name=DB_ATHENA_REGION_NAME)
         return AthenaDB._session
     
     @staticmethod
@@ -106,14 +126,12 @@ class AthenaDB:
         AthenaDB._session = None
         time.sleep(sleep_time)
 
-
     @staticmethod
     def select_query(query=None):
         nb_try=global_nb_try
         err_msg=""
         while nb_try>=0:
             try:
-        # if True:
                 df = pd.read_sql(query, AthenaDB.get_engine())
                 return df
             except Exception as e:
@@ -122,7 +140,7 @@ class AthenaDB:
                 nb_try-=1
                 AthenaDB.reset()
         return err_msg
-    
+
     @staticmethod
     def get_next_id(pub_id=None):
         query=f"""
@@ -134,7 +152,7 @@ class AthenaDB:
         if "next_id" in df.columns:
             return df.loc[0, "next_id"]
         return None
-    
+
     @staticmethod
     def insert_btvs_ids(id, content_id, pub_id):
         query=f"""

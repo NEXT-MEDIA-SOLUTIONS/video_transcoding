@@ -9,11 +9,7 @@ __version__ = "1.0"
 
 import os
 import sys
-import json
-import time
-import re
 import requests
-from datetime import datetime
 import boto3
 
 if __package__ is None:
@@ -21,7 +17,6 @@ if __package__ is None:
     workdir=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.append(workdir)
 
-from src.helpers.env import Env
 from src.helpers.log import LOG
 from src.helpers.utils import get_error_traceback
 

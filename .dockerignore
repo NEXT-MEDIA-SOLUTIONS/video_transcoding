@@ -46,3 +46,4 @@ pip-delete-this-directory.txt
 *.exmaple
 tests/
 *test*.py
+*.env.example

@@ -7,9 +7,10 @@ __license__ = "DWH"
 __service__ = "MediaInfo"
 __version__ = "1.0"
 
-import os, sys, json
+import os, sys, json, re
 import subprocess as sp
-# import cv2
+import cv2
+from typing import Dict, Optional, Any
 
 if __package__ is None:
     sys.path.append('.')
@@ -54,26 +55,26 @@ class VideoInfo:
         if "frame_count" in self.video_stream and "frame_rate" in self.video_stream:
             frame_count = float(self.video_stream["frame_count"])
             frame_rate = float(self.video_stream["frame_rate"])
-        elif 'frame_rate' in self.video_info and 'frame_count' in self.video_info:
+        elif 'frame_count' in self.video_info and 'frame_rate' in self.video_info:
             frame_rate = self.video_info['frame_rate']
             frame_count = self.video_info['frame_count']
         else:
             # Load the video file
-            # cap = cv2.VideoCapture(self.file_path)
-            # frame_count = float(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            # frame_rate = cap.get(cv2.CAP_PROP_FPS)
+            cap = cv2.VideoCapture(self.file_path)
+            frame_count = float(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            frame_rate = cap.get(cv2.CAP_PROP_FPS)
             
             # Use ffprobe to get frame count and frame rate
-            cmd = f'{FFMPEG_DIR_PATH}ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames,r_frame_rate -of csv=p=0 "{self.file_path}"'
-            flag, stdout, _ = exec_cmd(cmd)
-            if flag and stdout:
-                frame_count, r_frame_rate = stdout.strip().split(',')
-                frame_count = float(frame_count)
-                num, den = map(int, r_frame_rate.split('/'))
-                frame_rate = num / den
-            else:
-                LOG.log(name=__service__).error("Failed to get frame count and frame rate")
-                return None
+            # cmd = f'{FFMPEG_DIR_PATH}ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames,r_frame_rate -of csv=p=0 "{self.file_path}"'
+            # flag, stdout, _ = exec_cmd(cmd)
+            # if flag and stdout:
+            #     frame_count, r_frame_rate = stdout.strip().split(',')
+            #     frame_count = float(frame_count)
+            #     num, den = map(int, r_frame_rate.split('/'))
+            #     frame_rate = num / den
+            # else:
+            #     LOG.log(name=__service__).error("Failed to get frame count and frame rate")
+            #     return None
 
         LOG.log(name=__service__).info(f"frame_count: {frame_count}, frame_rate: {frame_rate}")
         estimated_duration = frame_count / frame_rate
@@ -154,11 +155,8 @@ class VideoInfo:
                 "-"
             ]
             result = sp.run(command, capture_output=True, text=True, check=True)
-            # print(result)
-            # print("_"*100)
             # Extracting Max True Peak Level from FFmpeg output
             output_lines = result.stderr.split("Summary:")[-1].strip().split('\n')
-            # print(output_lines)
             res = {}
             for line in output_lines:
                 if "I:" in line:
@@ -181,4 +179,68 @@ class VideoInfo:
         except Exception as e:
             LOG.log(name=__service__).error(f"Unexpected error: {get_error_traceback(e)}")
         LOG.log(name=__service__).info("Get Audio loudness using ffmpeg [DONE]")
+        return None
+
+    
+    def get_video_info(self) -> Optional[Dict[str, float]]:
+        """
+        Get video information using ffmpeg.
+
+        Args:
+            file_path (str): Path to the video file.
+
+        Returns:
+            Optional[Dict[str, float]]: Dictionary containing video information or None if an error occurred.
+        """
+        LOG.log(__service__).info("Get video information using ffmpeg [START]")
+        try:
+            command = [
+                f"{FFMPEG_DIR_PATH}ffmpeg",
+                "-i", self.file_path,
+                "-af", "ebur128=peak=true",
+                "-f", "null",
+                "-"
+            ]
+            result = sp.run(command, capture_output=True, text=True, check=True)
+            
+            info = {}
+            loudness_flag = False
+            
+            for line in result.stderr.splitlines():
+                if "Duration" in line:
+                    match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})", line)
+                    if match:
+                        hours, minutes, seconds, milliseconds = map(int, match.groups())
+                        info["duration_seconds"] = hours * 3600 + minutes * 60 + seconds + milliseconds / 100
+                        
+                    fps_match = re.search(r'(\d+)\s+fps', line)
+                    if fps_match:
+                        info["frame_rate"] = int(fps_match.group(1))
+                if "bitrate" in line:
+                    match = re.search(r"bitrate: (\d+) kb/s", line)
+                    if match:
+                        info["bitrate_kbps"] = int(match.group(1))
+                elif "Stream" in line and "Video" in line:
+                    width_height_match = re.search(r"(\d+)x(\d+)", line)
+                    if width_height_match:
+                        info["width"], info["height"] = map(int, width_height_match.groups())
+                elif "Summary:" in line:
+                    loudness_flag = True
+                elif loudness_flag and "I:" in line:
+                    info["integrated_loudness"] = float(line.split('I:')[1].strip().split(' ')[0])
+                elif loudness_flag and 'LRA:' in line:
+                    info["loudness_range"] = float(line.split('LRA:')[1].strip().split(' ')[0])
+                elif loudness_flag and 'LRA high:' in line: # The short-term loudness is typically the high LRA value
+                    info["max_short-term_loudness"] = float(line.split('LRA high:')[1].strip().split(' ')[0])
+                elif loudness_flag and 'LRA low:' in line: 
+                    info["min_short-term_loudness"] = float(line.split('LRA low:')[1].strip().split(' ')[0])
+                elif loudness_flag and 'Peak:' in line:
+                    info["true_peak"] = float(line.split('Peak:')[1].strip().split(' ')[0])
+                if loudness_flag and "max_short-term_loudness" in info and "min_short-term_loudness" in info:
+                    info["short-term_loudness_range"] = info["max_short-term_loudness"] - info["min_short-term_loudness"]
+            
+            LOG.log(__service__).info("Get video information using ffmpeg [DONE]")
+            return info
+        except Exception as e:
+            LOG.log(__service__).error(f"Error getting video info: {get_error_traceback(e)}")
         return None

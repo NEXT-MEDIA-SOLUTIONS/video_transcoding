@@ -3,6 +3,8 @@ paramiko
 pymediainfo
 requests
 pydub
-paramiko
+pandas
+sqlalchemy
 botocore
 boto3
+PyAthena

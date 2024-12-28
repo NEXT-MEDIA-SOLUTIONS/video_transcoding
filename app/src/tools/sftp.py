@@ -14,11 +14,8 @@ USERNAME= Env.get("SFTP_USERNAME")
 PASSWORD= Env.get("SFTP_PASSWORD")
 PORT= int(Env.get("SFTP_PORT",22))
 
-# print(HOSTNAME, USERNAME, PASSWORD, PORT)
-
 # https://github.com/paramiko/paramiko/blob/main/demos/demo_sftp.py
 remote_dir = '/in/'
-# remote_dir = '/test_dir/'
 
 def sftp_transfer(local_path: str):
     local_path = local_path.replace("\\", "/")
@@ -64,9 +61,4 @@ def sftp_transfer(local_path: str):
 if __name__ == "__main__":
     local_path = r'C:\Users\melkh\Desktop\dukto\workdir\altice_media\Bouygues_TVS\app\data\video_encoded\FR_ORSG_SHIE_SHIN_0005_020_F.mxf'
     sftp_transfer(local_path)
-    local_path = r'C:\Users\melkh\Desktop\dukto\workdir\altice_media\Bouygues_TVS\app\data\video_encoded\FR_ORSG_SHIE_SHIN_0006_020_F.mxf'
-    sftp_transfer(local_path)
-    local_path = r'C:\Users\melkh\Desktop\dukto\workdir\altice_media\Bouygues_TVS\app\data\video_encoded\FR_ORSG_SHIE_SHIN_0005_020_F.xml'
-    sftp_transfer(local_path)
-    local_path = r'C:\Users\melkh\Desktop\dukto\workdir\altice_media\Bouygues_TVS\app\data\video_encoded\FR_ORSG_SHIE_SHIN_0006_020_F.xml'
-    sftp_transfer(local_path)
+

@@ -19,8 +19,6 @@ l=[
 ]
 
 
-
-
 # (info, video_path)
 
 for pubid, url in l:
