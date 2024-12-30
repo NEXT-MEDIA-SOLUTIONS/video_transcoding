@@ -21,8 +21,14 @@ from src.helpers.log import LOG
 from src.helpers.utils import get_error_traceback
 
 # Initialize S3 client
-s3_client = boto3.client('s3')
+# s3_client = boto3.client('s3')
 
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.environ.get('AWS_DEFAULT_REGION')
+)
 
 # def download_file_from_url(url, path):
 #     response = requests.get(url)
@@ -58,9 +64,10 @@ def download_file_from_url(url: str, destination_path: str) -> bool:
         with open(destination_path, "wb") as file:
             file.write(response.content)
 
+        LOG.log(__service__).info(f"Successfully downloaded file from {url} to {destination_path}")
         return True
     except requests.exceptions.RequestException as e:
-        print(f"Error downloading file: {e}")
+        LOG.log(__service__).error(f"Error downloading file: {e}")
         return False
 
 def download_video_from_s3(bucket_name: str, object_key: str, local_file_path: str) -> bool:

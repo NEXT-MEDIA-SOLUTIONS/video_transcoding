@@ -3,14 +3,14 @@ FROM public.ecr.aws/lambda/python:3.9 as builder
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    DEBIAN_FRONTEND=noninteractive \
-    LD_LIBRARY_PATH=/opt/lib/libmediainfo.so
+    DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies and clean up in a single layer
 RUN yum update -y && \
-    yum install -y wget tar xz gcc make unzip opencv opencv-devel && \
+    yum install -y wget tar xz gcc make unzip && \
     yum clean all && \
     rm -rf /var/cache/yum
+    # opencv opencv-devel && \
 
 # Install FFmpeg and FFprobe
 RUN wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
@@ -47,5 +47,7 @@ ENV LD_LIBRARY_PATH=/opt/lib/libmediainfo.so \
 # Copy function code
 COPY app/ ${LAMBDA_TASK_ROOT}
 
-ENTRYPOINT ["python", "run.py"]
-# CMD ["lambda.handler"]
+# ENTRYPOINT ["python", "run.py"]
+CMD ["lambda_function.handler"]
+
+# RUN pip install watchdog watchdog[watchmedo]

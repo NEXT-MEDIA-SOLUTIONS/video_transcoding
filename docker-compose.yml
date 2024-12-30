@@ -1,7 +1,7 @@
 version: '3.3'
 
 services:
-  service-news:
+  service-video:
     image: video-transcoding
     build:
       context: .
@@ -11,12 +11,12 @@ services:
     container_name: video-transcoding
     volumes:
       - ./assets:/assets
-      - ./app:/workdir
+      - ./app:/var/task
     privileged: true
-    cap_add:
-      - NET_ADMIN
-    ports:
-      - 5001:5000
+    # cap_add:
+    #   - NET_ADMIN
+    # ports:
+    #   - 5001:5000
     environment:
       PYTHONUNBUFFERED: "0"
     restart: always
@@ -30,13 +30,14 @@ services:
           memory: 4096M
       restart_policy:
         condition: on-failure
+    entrypoint: []
     command:
-      - watchmedo
-      - auto-restart
-      - --directory=/var/task
-      - --pattern=*.py
-      - --recursive
-      - --
+      # - watchmedo
+      # - auto-restart
+      # - --directory=/var/task
+      # - --pattern=*.py
+      # - --recursive
+      # - --
       - python3
       - -u # force the stdout and stderr streams to be unbuffered; this option has no effect on stdin
-      - run.py
+      - /var/task/run.py

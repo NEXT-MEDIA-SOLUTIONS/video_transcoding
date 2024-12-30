@@ -23,7 +23,7 @@ from src.helpers.utils import get_error_traceback, exec_cmd
 from src.core.mediainfo import VideoInfo
 from src.db.athena import AthenaDB
 from src.tools.sftp import sftp_transfer
-from src.tools.s3 import upload_to_s3
+from src.tools.io import upload_to_s3
 
 ENCODED_VIDEO_DIR = Env.get("ENCODED_VIDEO_DIR","/tmp/encoded_video/")
 SIMPLES_VIDEO_DIR = Env.get("SIMPLES_VIDEO_DIR","/tmp/simples_video/")
@@ -113,6 +113,7 @@ class Encoder:
                 if sftp_transfer(self.output_xml_path):
                     return self.get_report()
             return self.get_report("Failed to transfert via SFTP !")
+            # return self.get_report()
             # TODO
         except Exception as e:
             err_msg = get_error_traceback(e)

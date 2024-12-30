@@ -25,21 +25,16 @@ from src.helpers.env import Env
 from src.helpers.log import LOG
 from src.helpers.utils import get_error_traceback
 
-DB_ATHENA_REGION_NAME=Env.get("DB_ATHENA_REGION_NAME")
+AWS_DEFAULT_REGION=Env.get("AWS_DEFAULT_REGION")
 DB_ATHENA_S3_STAGING_DIR=Env.get("DB_ATHENA_S3_STAGING_DIR")
-DB_ATHENA_DATABASE=Env.get("DB_ATHENA_DATABASE")
-DB_ATHENA_AWS_ACCESS_KEY_ID=Env.get("DB_ATHENA_AWS_ACCESS_KEY_ID")
-DB_ATHENA_AWS_SECRET_ACCESS_KEY=Env.get("DB_ATHENA_AWS_SECRET_ACCESS_KEY")
+AWS_ACCESS_KEY_ID=Env.get("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY=Env.get("AWS_SECRET_ACCESS_KEY")
 DB_ATHENA_ENGINE_PATH_WIN_AUTH=Env.get("DB_ATHENA_ENGINE_PATH_WIN_AUTH")
 log_flag = Env.get('APP_LOG')=='true'
 global_nb_try=int(Env.get("TOTALE_CONTROLE",6))
 sleep_time=int(Env.get("SLEEP_TIME",5))
 
-Env.set("AWS_ACCESS_KEY_ID", "DB_ATHENA_AWS_ACCESS_KEY_ID")
-Env.set("AWS_SECRET_ACCESS_KEY", "DB_ATHENA_AWS_SECRET_ACCESS_KEY")
-Env.set("AWS_DEFAULT_REGION", "DB_ATHENA_REGION_NAME")
-
-boto3.setup_default_session(region_name=DB_ATHENA_REGION_NAME)
+boto3.setup_default_session(region_name=AWS_DEFAULT_REGION)
 
 class AthenaDB:
     _client = None
@@ -52,9 +47,9 @@ class AthenaDB:
         if AthenaDB._client is None:
             AthenaDB._client = boto3.client(
                 'athena', 
-                aws_access_key_id=DB_ATHENA_AWS_ACCESS_KEY_ID, 
-                aws_secret_access_key=DB_ATHENA_AWS_SECRET_ACCESS_KEY, 
-                region_name=DB_ATHENA_REGION_NAME)
+                aws_access_key_id=AWS_ACCESS_KEY_ID, 
+                aws_secret_access_key=AWS_SECRET_ACCESS_KEY, 
+                region_name=AWS_DEFAULT_REGION)
         return AthenaDB._client
     
     @staticmethod
@@ -111,9 +106,9 @@ class AthenaDB:
         #     AthenaDB._session = Session()
         # return AthenaDB._session
             AthenaDB._session = boto3.Session(
-                aws_access_key_id=DB_ATHENA_AWS_ACCESS_KEY_ID, 
-                aws_secret_access_key=DB_ATHENA_AWS_SECRET_ACCESS_KEY,
-                region_name=DB_ATHENA_REGION_NAME)
+                aws_access_key_id=AWS_ACCESS_KEY_ID, 
+                aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                region_name=AWS_DEFAULT_REGION)
         return AthenaDB._session
     
     @staticmethod

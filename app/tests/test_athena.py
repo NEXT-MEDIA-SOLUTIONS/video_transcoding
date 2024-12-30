@@ -20,9 +20,9 @@ class TestAthenaDB(unittest.TestCase):
         self.assertEqual(client, mock_client_instance)
         mock_boto_client.assert_called_once_with(
             'athena',
-            aws_access_key_id=AthenaDB.DB_ATHENA_AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=AthenaDB.DB_ATHENA_AWS_SECRET_ACCESS_KEY,
-            region_name=AthenaDB.DB_ATHENA_REGION_NAME
+            aws_access_key_id=AthenaDB.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AthenaDB.AWS_SECRET_ACCESS_KEY,
+            region_name=AthenaDB.AWS_DEFAULT_REGION
         )
 
     @patch('app.src.db.athena.pd.read_sql')
