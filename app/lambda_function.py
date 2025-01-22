@@ -10,7 +10,6 @@ __version__ = "1.0"
 import os
 import sys
 import json
-import time
 import re
 from datetime import datetime
 

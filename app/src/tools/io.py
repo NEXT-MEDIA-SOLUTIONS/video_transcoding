@@ -20,15 +20,24 @@ if __package__ is None:
 from src.helpers.log import LOG
 from src.helpers.utils import get_error_traceback
 
-# Initialize S3 client
-# s3_client = boto3.client('s3')
+USE_AWS_KEY=os.environ.get("USE_AWS_KEY", False)
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_DEFAULT_REGION = os.environ.get('AWS_DEFAULT_REGION')
 
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-    region_name=os.environ.get('AWS_DEFAULT_REGION')
-)
+# Initialize S3 client
+if USE_AWS_KEY in ('true',True) and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION:
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region_name=AWS_DEFAULT_REGION
+    )
+    LOG.log(__service__).info(f"S3 client initialized with ACCESS KEY : {AWS_ACCESS_KEY_ID}")
+else:
+    s3_client = boto3.client('s3')
+    LOG.log(__service__).info("S3 client initialized with ROLE")
+
 
 # def download_file_from_url(url, path):
 #     response = requests.get(url)

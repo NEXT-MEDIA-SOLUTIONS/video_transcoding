@@ -10,7 +10,7 @@ services:
     shm_size: '2gb' # when RUNNING
     container_name: video-transcoding
     volumes:
-      - ./assets:/assets
+      - ./assets:/tmp
       - ./app:/var/task
     privileged: true
     # cap_add:

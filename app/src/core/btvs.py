@@ -21,7 +21,7 @@ from src.helpers.env import Env
 from src.helpers.log import LOG
 from src.helpers.utils import get_error_traceback, exec_cmd
 from src.core.mediainfo import VideoInfo
-from src.db.athena import AthenaDB
+from src.db.athena import get_next_id, insert_btvs_ids
 from src.tools.sftp import sftp_transfer
 from src.tools.io import upload_to_s3
 
@@ -153,7 +153,7 @@ class Encoder:
         flag += self.check_and_log("duration", 2*60, reasonable_duration, "<=")
         flag += self.check_and_log("duration", [15, 20, 30], reasonable_duration, "in")
         if flag!=0:
-            msg=f"Video duration does not meet the standards. The video will be skipped, and no VAST will be generated !!"
+            msg="Video duration does not meet the standards. The video will be skipped, and no VAST will be generated !!"
             self.error_msg += "\n"+msg
             LOG.log(__service__).error(msg)
             self.status = "duration ko"
@@ -309,12 +309,12 @@ class Encoder:
         return False
 
     def create_xml(self) -> None:
-        id_ = AthenaDB.get_next_id(self.pub_id)
+        id_ = get_next_id(self.pub_id)
         # content_id=f"AMAC00000000001"
         content_id=f"AMAC{id_:010d}"
         content_name="UNI_PUB"
         content_name=content_id
-        res = AthenaDB.insert_btvs_ids(id_, content_id, self.pub_id)
+        res = insert_btvs_ids(id_, content_id, self.pub_id)
         print(res)
 
         text="pubid_"+self.pub_id
