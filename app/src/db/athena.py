@@ -61,27 +61,13 @@ def get_query_results(query_execution_id):
     else:
         raise Exception(f"Query failed with state: {state}")
 
-# def extract_typed_value(data_item):
-#     key, value = next(iter(data_item.items()))
-#     if key == 'VarCharValue':
-#         return value
-#     elif key == 'IntegerValue':
-#         return int(value)
-#     elif key == 'DoubleValue':
-#         return float(value)
-#     # Add more type conversions as needed
-#     return value
-
-# typed_values = [extract_typed_value(item) for row in query_results for item in row['Data']]
-
-
 def get_next_id(pub_id=None):
-    query=f"""
-    SELECT COALESCE(
-        (SELECT id FROM provisioning.btvs_ids WHERE pub_id = '{pub_id}' ORDER BY add_at DESC LIMIT 1),
-        (SELECT COALESCE(MAX(id), 0) + 1 FROM provisioning.btvs_ids)
-    ) AS next_id"""
-
+    # query=f"""
+    # SELECT COALESCE(
+    #     (SELECT id FROM provisioning.btvs_ids WHERE pub_id = '{pub_id}' ORDER BY add_at DESC LIMIT 1),
+    #     (SELECT COALESCE(MAX(id), 0) + 1 FROM provisioning.btvs_ids)
+    # ) AS next_id"""
+    query="SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM provisioning.btvs_ids"
     select_response = execute_query(query, "provisioning")
     query_results = get_query_results(select_response)
     return int(next(row['Data'][0]['VarCharValue'] for row in query_results if row['Data'][0]['VarCharValue'] != 'next_id'))
