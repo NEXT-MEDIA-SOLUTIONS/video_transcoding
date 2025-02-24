@@ -160,11 +160,9 @@ class VideoInfo:
                 "-f", "null",
                 "-"
             ]
-            result = sp.run(command, capture_output=True, text=True, check=True)
-            # print(result)
-            # print("_"*100)
+            flag, stdout, stderr = exec_cmd(" ".join(command).replace("\n", " "))
             # Extracting Max True Peak Level from FFmpeg output
-            output_lines = result.stderr.split("Summary:")[-1].strip().split('\n')
+            output_lines = stderr.split("Summary:")[-1].strip().split('\n')
             # print(output_lines)
             res = {}
             for line in output_lines:
