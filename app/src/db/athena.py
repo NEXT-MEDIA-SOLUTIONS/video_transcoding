@@ -61,20 +61,6 @@ def get_query_results(query_execution_id):
     else:
         raise Exception(f"Query failed with state: {state}")
 
-# def extract_typed_value(data_item):
-#     key, value = next(iter(data_item.items()))
-#     if key == 'VarCharValue':
-#         return value
-#     elif key == 'IntegerValue':
-#         return int(value)
-#     elif key == 'DoubleValue':
-#         return float(value)
-#     # Add more type conversions as needed
-#     return value
-
-# typed_values = [extract_typed_value(item) for row in query_results for item in row['Data']]
-
-
 def get_next_id(pub_id=None):
     query=f"""
     SELECT COALESCE(
